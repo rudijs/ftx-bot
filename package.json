@@ -1,0 +1,27 @@
+{
+  "name": "node-typescript-seed-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --coverage --bail",
+    "test:watch": "jest --coverage --watchAll",
+    "view:coverage": "brave-browser coverage/lcov-report/index.html",
+    "tsc": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^25.1.4",
+    "@types/node": "^13.11.0",
+    "jest": "^25.2.4",
+    "ts-jest": "^25.3.0",
+    "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "axios": "^0.19.2",
+    "crypto": "^1.0.1",
+    "cryptojs": "^2.5.3"
+  }
+}
