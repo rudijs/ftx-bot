@@ -13,12 +13,15 @@ async function main(): Promise<any> {
   try {
     // get price data
     let method = "GET" as Method
-    const coin = "BTC"
+    // const coin = "BTC"
+    const coin = "ALGO"
     const market = `${coin}-PERP`
 
     const tokens: any = {
-      BULL: { token: "BULL", inverse: "BEAR" },
-      BEAR: { token: "BEAR", inverse: "BULL" },
+      // BULL: { token: "BULL", inverse: "BEAR" },
+      // BEAR: { token: "BEAR", inverse: "BULL" },
+      BULL: { token: "ALGOBULL", inverse: "ALGOBEAR" },
+      BEAR: { token: "ALGOBEAR", inverse: "ALGOBULL" },
     }
 
     const resolution = 60
@@ -32,9 +35,9 @@ async function main(): Promise<any> {
 
     // calculate and determine position status
     const { startTime, sma, position } = simpleMovingAverage(data.result, 34)
+    console.log(`==> Start Time: ${startTime}`)
     console.log(`==> Coin: ${coin}`)
     console.log(`==> Market: ${market}`)
-    console.log(`==> Start Time: ${startTime}`)
     console.log(`==> Current SMA: ${sma}`)
     console.log(`==> Current direction: ${position}`)
 
@@ -52,8 +55,7 @@ async function main(): Promise<any> {
     console.log(balances.result)
     if (openPosition) {
       console.log(`==> Current open position is good.`)
-      console.log(`==> Done.`)
-      return
+      return "==> Done."
     }
 
     // Cancel any Positions in the opposite direction
@@ -72,10 +74,17 @@ async function main(): Promise<any> {
         price: null,
         size: inverseTokenBalance.total,
       }
+      // console.log(params)
+      const res = await ftxApi(params)
+      console.log(res)
+
+      // wait for a few moments for the exchange to process
+      await new Promise((resolve) => {
+        const delay = 5000
+        console.log(`==> Wait: Allow ${delay}ms for exchange to complete the market sell order and update wallet USD balance...`)
+        setTimeout(() => resolve(), delay)
+      })
     }
-    // console.log(params)
-    const res = await ftxApi(params)
-    console.log(res)
 
     // open new position in the current direction
     console.log(`==> Opening new position...`)
@@ -115,7 +124,7 @@ async function main(): Promise<any> {
     const buyRes = await ftxApi(params)
     console.log(buyRes)
 
-    return "Done"
+    return "==> Done."
   } catch (e) {
     console.log(e)
   }
