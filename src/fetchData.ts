@@ -1,4 +1,4 @@
-const cryptojs = require("crypto")
+const crypto = require("crypto")
 import { AxiosInstance } from "axios"
 
 type ftxParams = {
@@ -12,17 +12,21 @@ type ftxParams = {
 export default (obj: ftxParams) => {
   const { axios, resolution, limit, apiKey, apiSecret } = obj
   const ts = Date.now()
+  const baseUrl = "https://ftx.com/api"
   const method = "GET"
+  const market = "BTC-PERP"
 
-  // const path = "/markets/BTC-PERP"
-  // const path = '/markets/{market_name}/candles?resolution={resolution}&limit={limit}&start_time={start_time}&end_time={end_time}'
-  const path = `/markets/BTC-PERP/candles?resolution=${resolution}&limit=${limit}`
+  const path = `/markets/${market}/candles?resolution=${resolution}&limit=${limit}`
 
-  const hash = cryptojs.createHmac("sha256", apiSecret).update(`${ts}${method}${path}`).digest("hex")
+  const hash = crypto.createHmac("sha256", apiSecret).update(`${ts}${method}${path}`).digest("hex")
   // console.log(hash)
 
+  // curl command line
+  // const curlCmd = `curl -H 'FTX-KEY: ${apiKey}' -H 'FTX-SIGN: ${hash}' -H 'FTX-TS: ${ts}' '${baseUrl}${path}'`
+  // console.log(curlCmd)
+
   return axios
-    .get(`https://ftx.com/api${path}`, {
+    .get(`${baseUrl}${path}`, {
       headers: {
         "FTX-KEY": apiKey,
         "FTX-SIGN": hash,
