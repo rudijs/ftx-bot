@@ -35,6 +35,8 @@ async function main(): Promise<any> {
 
     // calculate and determine position status
     const { startTime, sma, position } = simpleMovingAverage(data.result, 34)
+    console.log("==> ================================================================")
+    console.log(`==> Local Time: ${new Date(Date.now())}`)
     console.log(`==> Start Time: ${startTime}`)
     console.log(`==> Coin: ${coin}`)
     console.log(`==> Market: ${market}`)
@@ -45,7 +47,7 @@ async function main(): Promise<any> {
     path = "/api/wallet/balances"
     params.path = path
 
-    const balances = await ftxApi(params)
+    let balances = await ftxApi(params)
     // console.log(balances)
 
     // Do we have a position in the current direction
@@ -88,6 +90,12 @@ async function main(): Promise<any> {
 
     // open new position in the current direction
     console.log(`==> Opening new position...`)
+
+    // update balances
+    params.method = "GET"
+    params.path = "/api/wallet/balances"
+    balances = await ftxApi(params)
+    console.log(balances)
 
     // return "TEMP DONE"
 
