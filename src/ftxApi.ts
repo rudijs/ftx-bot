@@ -1,5 +1,5 @@
 const crypto = require("crypto")
-import { AxiosInstance } from "axios"
+import { AxiosInstance, Method } from "axios"
 
 export type ftxParams = {
   axios: AxiosInstance
@@ -7,10 +7,19 @@ export type ftxParams = {
   apiSecret: string
   method: string
   path: string
+  order?: ftxOrder
+}
+
+export type ftxOrder = {
+  market: string
+  type: string
+  side: string
+  price: null
+  size: number
 }
 
 export const ftxApi = (obj: ftxParams) => {
-  const { axios, apiKey, apiSecret, method, path } = obj
+  const { axios, apiKey, apiSecret, method, path, order } = obj
   // console.log(apiKey, apiSecret, method, path)
 
   const baseUrl = "https://ftx.com"
@@ -18,25 +27,40 @@ export const ftxApi = (obj: ftxParams) => {
 
   const ts = Date.now()
 
-  // console.log(101, `${ts}${method}${path}`)
+  let payload = ""
 
-  const signature = crypto.createHmac("sha256", apiSecret).update(`${ts}${method}${path}`).digest("hex")
+  if (order) {
+    payload = JSON.stringify(order)
+  }
+
+  // console.log(101, `${ts}${method}${path}${payload}`)
+
+  const signature = crypto.createHmac("sha256", apiSecret).update(`${ts}${method}${path}${payload}`).digest("hex")
   // console.log(signature)
 
-  // curl command line
-  // const curlCmd = `curl -H 'FTX-SUBACCOUNT: ${subAccount}' -H 'FTX-KEY: ${apiKey}' -H 'FTX-SIGN: ${signature}' -H 'FTX-TS: ${ts}' '${baseUrl}${path}'`
-  // console.log(curlCmd)
+  // // curl command line
+  // // GET
+  // let curlCmd = `curl -H 'FTX-SUBACCOUNT: ${subAccount}' -H 'FTX-KEY: ${apiKey}' -H 'FTX-SIGN: ${signature}' -H 'FTX-TS: ${ts}'`
+  // // POST
+  // if (method === "POST") {
+  //   curlCmd = `${curlCmd} -H 'Content-Type: application/json' -X POST -d '${JSON.stringify(order)}'`
+  // }
+  // // CLI Command to copy/paste0
+  // console.log(`${curlCmd} '${baseUrl}${path}'`)
 
-  return axios
-    .get(`${baseUrl}${path}`, {
-      headers: {
-        "content-type": "application/json",
-        "FTX-KEY": apiKey,
-        "FTX-SIGN": signature,
-        "FTX-TS": ts,
-        "FTX-SUBACCOUNT": subAccount,
-      },
-    })
+  return axios({
+    baseURL: baseUrl,
+    url: path,
+    method: method as Method,
+    headers: {
+      "content-type": "application/json",
+      "FTX-KEY": apiKey,
+      "FTX-SIGN": signature,
+      "FTX-TS": ts,
+      "FTX-SUBACCOUNT": subAccount,
+    },
+    data: payload,
+  })
     .then(function (response) {
       // handle success
       // console.log(response.data)

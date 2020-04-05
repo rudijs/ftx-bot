@@ -1,0 +1,21 @@
+{
+  "result": {
+    "avgFillPrice": null,
+    "clientId": null,
+    "createdAt": "2020-04-05T11:06:18.652533+00:00",
+    "filledSize": 0.0,
+    "future": null,
+    "id": 4459376895,
+    "ioc": true,
+    "market": "BULL/USD",
+    "postOnly": false,
+    "price": null,
+    "reduceOnly": false,
+    "remainingSize": 0.0006,
+    "side": "sell",
+    "size": 0.0006,
+    "status": "new",
+    "type": "market"
+  },
+  "success": true
+}
