@@ -1,6 +1,6 @@
 // export type directionBias = "BULL" | "BEAR"
 
-export const hasToken = (data: any[], directionBias: "BULL" | "BEAR") => {
+export const hasToken = (data: any[], directionBias: string) => {
   // console.log(data, directionBias)
 
   const coins = data.filter((item) => {

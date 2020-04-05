@@ -24,8 +24,8 @@ export const ftxApi = (obj: ftxParams) => {
   // console.log(signature)
 
   // curl command line
-  const curlCmd = `curl -H 'FTX-SUBACCOUNT: ${subAccount}' -H 'FTX-KEY: ${apiKey}' -H 'FTX-SIGN: ${signature}' -H 'FTX-TS: ${ts}' '${baseUrl}${path}'`
-  console.log(curlCmd)
+  // const curlCmd = `curl -H 'FTX-SUBACCOUNT: ${subAccount}' -H 'FTX-KEY: ${apiKey}' -H 'FTX-SIGN: ${signature}' -H 'FTX-TS: ${ts}' '${baseUrl}${path}'`
+  // console.log(curlCmd)
 
   return axios
     .get(`${baseUrl}${path}`, {
