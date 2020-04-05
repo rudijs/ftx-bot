@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios, { Method } from "axios"
 import { ftxApi, ftxParams } from "./ftxApi"
 import simpleMovingAverage from "./simpleMovingAverage"
 import { hasToken } from "./wallet"
@@ -11,8 +11,8 @@ const apiSecret = process.env.FTX_SECRET
 async function main(): Promise<any> {
   try {
     // get price data
-    const method = "GET"
-    const market = "BTC-PERP"
+    let method = "GET" as Method
+    let market = "BTC-PERP"
     const resolution = 60
     const limit = 200
     let path = `/api/markets/${market}/candles?resolution=${resolution}&limit=${limit}`
@@ -47,6 +47,23 @@ async function main(): Promise<any> {
 
     // Cancel any Positions in the opposite direction
     console.log(`==> Closing open positions...`)
+    // method = "POST"
+    // path = "/api/orders"
+    // market = "BULL/USD"
+    // const type = "market"
+    // const side = "sell"
+    // const price = null
+    // const size = 0.0006
+    // params = {
+    //   axios,
+    //   apiKey,
+    //   apiSecret,
+    //   method,
+    //   path,
+    //   order: { market, type, side, price, size },
+    // }
+    // const res = await ftxApi(params)
+    // console.log(res)
 
     // open new position in the current direction
     console.log(`==> Opening new position...`)

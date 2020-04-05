@@ -5,15 +5,15 @@ export type ftxParams = {
   axios: AxiosInstance
   apiKey: string
   apiSecret: string
-  method: string
+  method: Method
   path: string
   order?: ftxOrder
 }
 
 export type ftxOrder = {
   market: string
-  type: string
-  side: string
+  type: "market"
+  side: "sell" | "buy"
   price: null
   size: number
 }
@@ -51,7 +51,7 @@ export const ftxApi = (obj: ftxParams) => {
   return axios({
     baseURL: baseUrl,
     url: path,
-    method: method as Method,
+    method: method,
     headers: {
       "content-type": "application/json",
       "FTX-KEY": apiKey,
