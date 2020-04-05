@@ -1,0 +1,7 @@
+{
+  "result": [
+    { "coin": "BULL", "free": 0.0006, "total": 0.0006, "usdValue": 0.978799315452 },
+    { "coin": "USD", "free": 9.51997742, "total": 9.51997742, "usdValue": 9.51997742 }
+  ],
+  "success": true
+}
