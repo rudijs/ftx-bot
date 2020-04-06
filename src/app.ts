@@ -28,7 +28,7 @@ async function main(): Promise<any> {
         coin = "ALT"
         tokens = {
           BULL: { token: "ALTBULL", inverse: "ALTBEAR" },
-          BEAR: { token: "ALTOBEAR", inverse: "ALTBULL" },
+          BEAR: { token: "ALTBEAR", inverse: "ALTBULL" },
         }
         break
       default:
@@ -115,12 +115,15 @@ async function main(): Promise<any> {
     }
 
     const { sma: sma5 } = simpleMovingAverage(data.result, 5)
-    const { sma: sma21 } = simpleMovingAverage(data.result, 21)
+    const { sma: sma8 } = simpleMovingAverage(data.result, 8)
+    // const { sma: sma13 } = simpleMovingAverage(data.result, 13)
     console.log(`==> Current SMA5: ${sma5}`)
-    console.log(`==> Current SMA21: ${sma21}`)
+    console.log(`==> Current SMA8: ${sma8}`)
+    // console.log(`==> Current SMA13: ${sma13}`)
 
     if (position === "BULL") {
-      if (sma5 > sma21) {
+      // if (sma5 > sma8 && sma8 > sma13) {
+      if (sma5 > sma8) {
         console.log(`==> Short Term Bias: BUY ${tokens[position].token}`)
 
         // do we have a position already?
@@ -167,7 +170,7 @@ async function main(): Promise<any> {
         const marketSellBalance = tokenBalance(balances.result, tokens[position].token)
         // console.log(marketSellBalance)
         if (marketSellBalance && marketSellBalance.total > 0) {
-          console.log(`==> Market SELL: ${tokens[position].token}`)
+          console.log(`==> Market SELL: ${tokens[position].token}/USD - Amount: ${marketSellBalance.total}`)
           params.method = "POST"
           params.path = "/api/orders"
           params.order = {
@@ -178,14 +181,16 @@ async function main(): Promise<any> {
             size: marketSellBalance.total,
           }
           // console.log(params)
-          const res = await ftxApi(params)
-          console.log(`==> Market sell ${params.order.market}: ${res.success}`)
+          await ftxApi(params)
+        } else {
+          console.log(`==> No ${tokens[position].token} to sell`)
         }
       }
     }
 
     if (position === "BEAR") {
-      if (sma5 < sma21) {
+      // if (sma5 < sma8 && sma8 < sma13) {
+      if (sma5 < sma8) {
         console.log("buy BEAR")
         console.log(`==> Short Term Bias: BUY ${tokens[position].token}`)
 
@@ -233,7 +238,7 @@ async function main(): Promise<any> {
         const marketSellBalance = tokenBalance(balances.result, tokens[position].token)
         // console.log(marketSellBalance)
         if (marketSellBalance && marketSellBalance.total > 0) {
-          console.log(`==> Market SELL: ${tokens[position].token}`)
+          console.log(`==> Market SELL: ${tokens[position].token}/USD - Amount: ${marketSellBalance.total}`)
           params.method = "POST"
           params.path = "/api/orders"
           params.order = {
@@ -246,6 +251,8 @@ async function main(): Promise<any> {
           // console.log(params)
           const res = await ftxApi(params)
           console.log(`==> Market sell ${params.order.market}: ${res.success}`)
+        } else {
+          console.log(`==> No ${tokens[position].token} to sell`)
         }
       }
     }
