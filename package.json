@@ -23,6 +23,7 @@
     "axios": "^0.19.2",
     "crypto": "^1.0.1",
     "cryptojs": "^2.5.3",
-    "decimal.js": "^10.2.0"
+    "decimal.js": "^10.2.0",
+    "exponential-moving-average": "^1.0.0"
   }
 }

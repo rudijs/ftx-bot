@@ -16,6 +16,7 @@ export type ftxOrder = {
   side: "sell" | "buy"
   price: null
   size: number
+  reduceOnly?: boolean
 }
 
 export const ftxApi = (obj: ftxParams) => {

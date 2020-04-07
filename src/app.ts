@@ -1,6 +1,6 @@
 import axios, { Method } from "axios"
 import { ftxApi, ftxParams } from "./ftxApi"
-import simpleMovingAverage from "./simpleMovingAverage"
+import ema from "exponential-moving-average"
 import { tokenBalance } from "./wallet"
 import Decimal from "decimal.js"
 
@@ -12,32 +12,13 @@ const apiSecret = process.env.FTX_SECRET
 async function main(): Promise<any> {
   try {
     const args = process.argv.slice()
-    let coin: string
-    let tokens: any
+    let coin = "BTC"
+    let resolution = 60
     let params: ftxParams
 
-    switch (args[2]) {
-      case "ALGO":
-        coin = "ALGO"
-        tokens = {
-          BULL: { token: "ALGOBULL", inverse: "ALGOBEAR" },
-          BEAR: { token: "ALGOBEAR", inverse: "ALGOBULL" },
-        }
-        break
-      case "ALT":
-        coin = "ALT"
-        tokens = {
-          BULL: { token: "ALTBULL", inverse: "ALTBEAR" },
-          BEAR: { token: "ALTBEAR", inverse: "ALTBULL" },
-        }
-        break
-      default:
-        coin = "BTC"
-        tokens = {
-          BULL: { token: "BULL", inverse: "BEAR" },
-          BEAR: { token: "BEAR", inverse: "BULL" },
-        }
-    }
+    // Optional command line parameters
+    if (args[2]) coin = args[2]
+    if (args[3]) resolution = +args[3]
 
     const market = `${coin}-PERP`
 
@@ -45,10 +26,6 @@ async function main(): Promise<any> {
     console.log(`==> Local Time: ${new Date(Date.now())}`)
     console.log(`==> Coin: ${coin}`)
     console.log(`==> Market: ${market}`)
-    console.log(`==> BULL Token: ${tokens.BULL.token}`)
-    console.log(`==> BULL Token Inverse: ${tokens.BULL.inverse}`)
-    console.log(`==> BEAR Token: ${tokens.BEAR.token}`)
-    console.log(`==> BEAR Token Inverse: ${tokens.BEAR.inverse}`)
 
     // GET /wallet/balances
     let method = "GET" as Method
@@ -60,8 +37,9 @@ async function main(): Promise<any> {
     console.log(balances.result)
 
     // GET historical data
-    const resolution = 60
     const limit = 200
+    console.log(`==> Historical data resolution: ${resolution}`)
+    console.log(`==> Historical data limit: ${limit}`)
     path = `/api/markets/${market}/candles?resolution=${resolution}&limit=${limit}`
 
     params = { axios, apiKey, apiSecret, method, path }
@@ -69,93 +47,100 @@ async function main(): Promise<any> {
     const data = await ftxApi(params)
     console.log("==> GET historical data", data.success)
 
-    // determine the base line bias - bull or bear
-    // when bullish only take longs
-    // when bearish only take shorts
-    const { startTime, sma, position } = simpleMovingAverage(data.result, 200)
-    console.log(`==> Start Time: ${startTime}`)
-    console.log(`==> Current SMA: ${sma}`)
-    console.log(`==> Long Term Bias: ${position}`)
+    // determine directional bias - bull or bear
+    const closePrices = data.result.map((item: any) => item.close)
+    // console.log(closePrices)
+    // console.log(ema(closePrices, 100).slice(-1)[0])
+    const emaPeriod = 100
+    const currentEma = ema(closePrices, emaPeriod).slice(-1)[0]
+    console.log(`==> Current EMA ${emaPeriod}: ${currentEma}`)
 
-    // Check for and sell any positions in the wrong direction
-    // Cancel any Positions in the opposite direction
-    console.log(`==> Closing any open positions in the inverse direction...`)
-    console.log(`==> Inverse token: ${tokens[position].inverse}`)
-    const inverseTokenBalance = tokenBalance(balances.result, tokens[position].inverse)
-    if (inverseTokenBalance && inverseTokenBalance.total > 0) {
-      params.method = "POST"
-      params.path = "/api/orders"
-      params.order = {
-        market: `${tokens[position].inverse}/USD`,
-        type: "market",
-        side: "sell",
-        price: null,
-        size: inverseTokenBalance.total,
-      }
-      // console.log(params)
-      const res = await ftxApi(params)
-      console.log(`==> Market sell ${params.order.market}: ${res.success}`)
+    const lastPrice = closePrices.pop()
+    console.log(`==> Current Price: ${lastPrice}`)
 
-      // // wait for a few moments for the exchange to process
-      await new Promise((resolve) => {
-        const delay = 5000
-        console.log(`==> Wait: Allow ${delay}ms for exchange to complete the market sell order and update wallet USD balance...`)
-        setTimeout(() => resolve(), delay)
-      })
-
-      // GET /wallet/balances
-      console.log("==> Updating Wallet Balances...")
-      method = "GET" as Method
-      path = "/api/wallet/balances"
-      params = { axios, apiKey, apiSecret, method, path }
-
-      balances = await ftxApi(params)
-      console.log("==> Wallet Balances:")
-      console.log(balances.result)
+    let directionalBias = "BULL"
+    if (lastPrice < currentEma) {
+      directionalBias = "BEAR"
     }
 
-    const { sma: sma5 } = simpleMovingAverage(data.result, 5)
-    const { sma: sma8 } = simpleMovingAverage(data.result, 8)
-    // const { sma: sma13 } = simpleMovingAverage(data.result, 13)
-    console.log(`==> Current SMA5: ${sma5}`)
-    console.log(`==> Current SMA8: ${sma8}`)
-    // console.log(`==> Current SMA13: ${sma13}`)
+    console.log(`==> Current direction bias: ${directionalBias}`)
 
-    if (position === "BULL") {
-      // if (sma5 > sma8 && sma8 > sma13) {
-      if (sma5 > sma8) {
-        console.log(`==> Short Term Bias: BUY ${tokens[position].token}`)
+    console.log(`==> Getting trade positions (for now there is only ever one position)...`)
+    params.method = "GET"
+    params.path = "/api/positions"
+    let positions = await ftxApi(params)
+    console.log("==> Positions:")
+    // console.log(positions.result)
+    const bullPositions = positions.result.filter((item: any) => item.side === "buy" && item.size > 0)
+    console.log(`==> Bull positions:`)
+    console.log(bullPositions)
 
-        // do we have a position already?
-        const currentPosition = tokenBalance(balances.result, tokens[position].token)
-        if (currentPosition && currentPosition.total > 0) {
-          console.log(`==> Position OK: ${tokens[position].token}`)
-          return "==> Done."
+    const bearPositions = positions.result.filter((item: any) => item.side === "sell" && item.size > 0)
+    console.log(`==> Bear positions:`)
+    console.log(bearPositions)
+
+    if (directionalBias === "BULL") {
+      // close any shorts
+      if (bearPositions.length) {
+        params.method = "POST"
+        params.path = "/api/orders"
+        params.order = {
+          market,
+          type: "market",
+          side: "buy",
+          price: null,
+          size: bearPositions[0].size,
+          reduceOnly: true,
         }
+        // console.log(params)
+        const res = await ftxApi(params)
+        console.log(res)
 
-        console.log(`==> Market BUY: ${tokens[position].token}`)
+        // wait for a few moments for the exchange to process
+        await new Promise((resolve) => {
+          const delay = 2000
+          console.log(`==> Wait: Allow ${delay}ms for exchange to complete the market sell order and update wallet USD balance...`)
+          setTimeout(() => resolve(), delay)
+        })
+      }
+      // check if any longs
+      if (bullPositions.length) {
+        console.log(`==> Bull positions in market ${market} are OK.`)
+        return "==> Done."
+      } else {
+        console.log(`==> Opening new Bull position in market ${market}...`)
+
+        // update balances
+        params.method = "GET"
+        params.path = "/api/wallet/balances"
+        params.order = undefined
+        balances = await ftxApi(params)
+        console.log(balances)
+
+        // get available USD balance
+        const accountUsdBalance = tokenBalance(balances.result, "USD")
+        console.log("==> Account USD balance:")
+        console.log(accountUsdBalance)
 
         // get market rates for token
         params.method = "GET"
-        params.path = `/api/markets/${tokens[position].token}/USD`
-        params.order = undefined
+        params.path = `/api/markets/${market}`
         const marketRates = await ftxApi(params)
-        console.log(`==> Market rates for ${tokens[position].token}`)
+        console.log(`==> Market rates for ${market}`)
         console.log(marketRates)
 
         // calcuate size for market buy
         Decimal.set({ precision: 4, defaults: true })
-        const usdBalance = tokenBalance(balances.result, "USD")
-        const usdAmount = new Decimal(usdBalance.free).mul(0.9)
-        console.log("==> USD Amount to invest:", usdAmount.toNumber())
-        const size = usdAmount.div(marketRates.result.bid)
+        const usdValue = new Decimal(accountUsdBalance.free).mul(0.9)
+        console.log("==> USD Value:", usdValue.toNumber())
+        const size = usdValue.div(marketRates.result.bid)
         console.log("==> Size:", size.toNumber())
 
         // Add new position
         params.method = "POST"
         params.path = "/api/orders"
         params.order = {
-          market: `${tokens[position].token}/USD`,
+          market: `${market}`,
           type: "market",
           side: "buy",
           price: null,
@@ -164,96 +149,80 @@ async function main(): Promise<any> {
         // console.log(params)
         const buyRes = await ftxApi(params)
         console.log(buyRes)
-      } else {
-        console.log(`==> Short Term Bias: SELL ${tokens[position].token}`)
-        console.log(`==> Checking for any ${tokens[position].token} to sell...`)
-        const marketSellBalance = tokenBalance(balances.result, tokens[position].token)
-        // console.log(marketSellBalance)
-        if (marketSellBalance && marketSellBalance.total > 0) {
-          console.log(`==> Market SELL: ${tokens[position].token}/USD - Amount: ${marketSellBalance.total}`)
-          params.method = "POST"
-          params.path = "/api/orders"
-          params.order = {
-            market: `${tokens[position].token}/USD`,
-            type: "market",
-            side: "sell",
-            price: null,
-            size: marketSellBalance.total,
-          }
-          // console.log(params)
-          await ftxApi(params)
-        } else {
-          console.log(`==> No ${tokens[position].token} to sell`)
-        }
       }
     }
 
-    if (position === "BEAR") {
-      // if (sma5 < sma8 && sma8 < sma13) {
-      if (sma5 < sma8) {
-        console.log("buy BEAR")
-        console.log(`==> Short Term Bias: BUY ${tokens[position].token}`)
-
-        // do we have a position already?
-        const currentPosition = tokenBalance(balances.result, tokens[position].token)
-        if (currentPosition && currentPosition.total > 0) {
-          console.log(`==> Position OK: ${tokens[position].token}`)
-          return "==> Done."
+    if (directionalBias === "BEAR") {
+      // close any long
+      if (bearPositions.length) {
+        params.method = "POST"
+        params.path = "/api/orders"
+        params.order = {
+          market,
+          type: "market",
+          side: "sell",
+          price: null,
+          size: bullPositions[0].size,
+          reduceOnly: true,
         }
+        // console.log(params)
+        const res = await ftxApi(params)
+        console.log(res)
 
-        console.log(`==> Market BUY: ${tokens[position].token}`)
+        // wait for a few moments for the exchange to process
+        await new Promise((resolve) => {
+          const delay = 2000
+          console.log(`==> Wait: Allow ${delay}ms for exchange to complete the market sell order and update wallet USD balance...`)
+          setTimeout(() => resolve(), delay)
+        })
+      }
+
+      // check if any shorts
+      if (bearPositions.length) {
+        console.log(`==> Bear positions in market ${market} are OK.`)
+        return "==> Done."
+      } else {
+        console.log(`==> Opening new Bear position in market ${market}...`)
+
+        // update balances
+        params.method = "GET"
+        params.path = "/api/wallet/balances"
+        params.order = undefined
+        balances = await ftxApi(params)
+        console.log(balances)
+
+        // get available USD balance
+        const accountUsdBalance = tokenBalance(balances.result, "USD")
+        console.log("==> Account USD balance:")
+        console.log(accountUsdBalance)
 
         // get market rates for token
         params.method = "GET"
-        params.path = `/api/markets/${tokens[position].token}/USD`
-        params.order = undefined
+        params.path = `/api/markets/${market}`
         const marketRates = await ftxApi(params)
-        console.log(`==> Market rates for ${tokens[position].token}`)
+        console.log(`==> Market rates for ${market}`)
         console.log(marketRates)
 
         // calcuate size for market buy
         Decimal.set({ precision: 4, defaults: true })
-        const usdBalance = tokenBalance(balances.result, "USD")
-        const usdAmount = new Decimal(usdBalance.free).mul(0.9)
-        console.log("==> USD Amount to invest:", usdAmount.toNumber())
-        const size = usdAmount.div(marketRates.result.bid)
+        const usdValue = new Decimal(accountUsdBalance.free).mul(0.9)
+        console.log("==> USD Value:", usdValue.toNumber())
+        const size = usdValue.div(marketRates.result.bid)
         console.log("==> Size:", size.toNumber())
 
         // Add new position
         params.method = "POST"
         params.path = "/api/orders"
         params.order = {
-          market: `${tokens[position].token}/USD`,
+          market: `${market}`,
           type: "market",
-          side: "buy",
+          side: "sell",
           price: null,
           size: size.toNumber(),
         }
         // console.log(params)
         const buyRes = await ftxApi(params)
         console.log(buyRes)
-      } else {
-        console.log(`==> Short Term Bias: SELL ${tokens[position].token}`)
-        console.log(`==> Checking for any ${tokens[position].token} to sell...`)
-        const marketSellBalance = tokenBalance(balances.result, tokens[position].token)
-        // console.log(marketSellBalance)
-        if (marketSellBalance && marketSellBalance.total > 0) {
-          console.log(`==> Market SELL: ${tokens[position].token}/USD - Amount: ${marketSellBalance.total}`)
-          params.method = "POST"
-          params.path = "/api/orders"
-          params.order = {
-            market: `${tokens[position].token}/USD`,
-            type: "market",
-            side: "sell",
-            price: null,
-            size: marketSellBalance.total,
-          }
-          // console.log(params)
-          const res = await ftxApi(params)
-          console.log(`==> Market sell ${params.order.market}: ${res.success}`)
-        } else {
-          console.log(`==> No ${tokens[position].token} to sell`)
-        }
       }
     }
 
