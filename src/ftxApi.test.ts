@@ -17,6 +17,7 @@ describe("ftxApi", () => {
       axios,
       apiKey,
       apiSecret,
+      subAccount: "BTC-PERP",
       method,
       path,
     }
@@ -36,6 +37,7 @@ describe("ftxApi", () => {
       axios,
       apiKey,
       apiSecret,
+      subAccount: "BTC-PERP",
       method,
       path,
     }
@@ -56,6 +58,7 @@ describe("ftxApi", () => {
   //     axios,
   //     apiKey,
   //     apiSecret,
+  // subAccount: "BTC-PERP",
   //     method,
   //     path,
   //     order: { market, type, side, price, size },
@@ -76,6 +79,7 @@ describe("ftxApi", () => {
   //     axios,
   //     apiKey,
   //     apiSecret,
+  // subAccount: "BTC-PERP",
   //     method,
   //     path,
   //     order: { market, type, side, price, size },

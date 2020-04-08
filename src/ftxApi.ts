@@ -5,7 +5,7 @@ export type ftxParams = {
   axios: AxiosInstance
   apiKey: string
   apiSecret: string
-  subAccount?: string
+  subAccount: string
   method: Method
   path: string
   order?: ftxOrder
@@ -21,11 +21,10 @@ export type ftxOrder = {
 }
 
 export const ftxApi = (obj: ftxParams) => {
-  const { axios, apiKey, apiSecret, method, path, order } = obj
+  const { axios, apiKey, apiSecret, subAccount, method, path, order } = obj
   // console.log(apiKey, apiSecret, method, path)
 
   const baseUrl = "https://ftx.com"
-  const subAccount = obj.subAccount || "BTC-Perp"
 
   const ts = Date.now()
 
@@ -50,17 +49,22 @@ export const ftxApi = (obj: ftxParams) => {
   // // CLI Command to copy/paste0
   // console.log(`${curlCmd} '${baseUrl}${path}'`)
 
+  const headers: any = {
+    "content-type": "application/json",
+    "FTX-KEY": apiKey,
+    "FTX-SIGN": signature,
+    "FTX-TS": ts,
+  }
+
+  if (subAccount) {
+    headers["FTX-SUBACCOUNT"] = subAccount
+  }
+
   return axios({
     baseURL: baseUrl,
     url: path,
     method: method,
-    headers: {
-      "content-type": "application/json",
-      "FTX-KEY": apiKey,
-      "FTX-SIGN": signature,
-      "FTX-TS": ts,
-      "FTX-SUBACCOUNT": subAccount,
-    },
+    headers,
     data: payload,
   })
     .then(function (response) {
