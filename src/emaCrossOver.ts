@@ -30,7 +30,7 @@ async function main(): Promise<any> {
     // GET /wallet/balances
     let method = "GET" as Method
     let path = "/api/wallet/balances"
-    params = { axios, apiKey, apiSecret, method, path }
+    params = { axios, apiKey, apiSecret, subAccount: "ALGO-PERP", method, path }
 
     let balances = await ftxApi(params)
     console.log("==> Wallet Balances:")
@@ -42,7 +42,7 @@ async function main(): Promise<any> {
     console.log(`==> Historical data limit: ${limit}`)
     path = `/api/markets/${market}/candles?resolution=${resolution}&limit=${limit}`
 
-    params = { axios, apiKey, apiSecret, method, path }
+    params = { axios, apiKey, apiSecret, subAccount: "ALGO-PERP", method, path }
 
     const data = await ftxApi(params)
     console.log("==> GET historical data", data.success)
@@ -51,16 +51,32 @@ async function main(): Promise<any> {
     const closePrices = data.result.map((item: any) => item.close)
     // console.log(closePrices)
     // console.log(ema(closePrices, 100).slice(-1)[0])
-    const emaPeriod = 100
-    const currentEma = ema(closePrices, emaPeriod).slice(-1)[0]
-    console.log(`==> Current EMA ${emaPeriod}: ${currentEma}`)
+    const currentEma5 = ema(closePrices, {
+      range: 5,
+      format: function (num: number) {
+        return num.toFixed(4)
+      },
+    }).slice(-1)[0]
+    console.log(`==> Current EMA 5: ${currentEma5}`)
+
+    // const currentEma13 = ema(closePrices, 13).slice(-1)[0]
+    const currentEma13 = ema(closePrices, {
+      range: 13,
+      format: function (num: number) {
+        return num.toFixed(4)
+      },
+    }).slice(-1)[0]
+    console.log(`==> Current EMA 13: ${currentEma13}`)
 
     const lastPrice = closePrices.pop()
     console.log(`==> Current Price: ${lastPrice}`)
 
     let directionalBias = "BULL"
-    if (lastPrice < currentEma) {
+    if (currentEma5 < currentEma13) {
       directionalBias = "BEAR"
+    }
+    if (currentEma5 === currentEma13) {
+      return '==> EMA\'s are equal - position is NEUTRAL, no action taken'
     }
 
     console.log(`==> Current direction bias: ${directionalBias}`)

@@ -1,8 +1,8 @@
 import axios, { Method } from "axios"
 import { ftxApi, ftxParams } from "./ftxApi"
-import ema from "exponential-moving-average"
 import { tokenBalance } from "./wallet"
 import Decimal from "decimal.js"
+import { OBV, EMA } from "technicalindicators"
 
 if (!process.env.FTX_API_KEY || !process.env.FTX_SECRET) throw new Error("Missing required FTX env vars")
 
@@ -14,11 +14,13 @@ async function main(): Promise<any> {
     const args = process.argv.slice()
     let coin = "BTC"
     let resolution = 60
+    let subAccount = "ALGO-PERP"
     let params: ftxParams
 
     // Optional command line parameters
     if (args[2]) coin = args[2]
     if (args[3]) resolution = +args[3]
+    if (args[4]) subAccount = args[4]
 
     const market = `${coin}-PERP`
 
@@ -30,37 +32,51 @@ async function main(): Promise<any> {
     // GET /wallet/balances
     let method = "GET" as Method
     let path = "/api/wallet/balances"
-    params = { axios, apiKey, apiSecret, method, path }
+    params = { axios, apiKey, apiSecret, subAccount, method, path }
 
     let balances = await ftxApi(params)
     console.log("==> Wallet Balances:")
     console.log(balances.result)
+    // console.log(balances)
 
     // GET historical data
-    const limit = 200
+    const limit = 900
     console.log(`==> Historical data resolution: ${resolution}`)
     console.log(`==> Historical data limit: ${limit}`)
     path = `/api/markets/${market}/candles?resolution=${resolution}&limit=${limit}`
 
-    params = { axios, apiKey, apiSecret, method, path }
+    params = { axios, apiKey, apiSecret, subAccount, method, path }
 
     const data = await ftxApi(params)
     console.log("==> GET historical data", data.success)
 
     // determine directional bias - bull or bear
-    const closePrices = data.result.map((item: any) => item.close)
-    // console.log(closePrices)
-    // console.log(ema(closePrices, 100).slice(-1)[0])
-    const emaPeriod = 100
-    const currentEma = ema(closePrices, emaPeriod).slice(-1)[0]
-    console.log(`==> Current EMA ${emaPeriod}: ${currentEma}`)
+    const close = data.result.map((item: any) => item.close)
+    // console.log(close.length)
+    // console.log(close[close.length - 1])
 
-    const lastPrice = closePrices.pop()
-    console.log(`==> Current Price: ${lastPrice}`)
+    const volume = data.result.map((item: any) => item.volume)
+    // console.log(volume.length)
+    // console.log(volume[volume.length - 1])
+
+    const onBalanceVolume = OBV.calculate({ close, volume })
+    const currentObv = onBalanceVolume[onBalanceVolume.length - 1]
+    console.log(`==> Current OBV: ${currentObv}`)
+
+    const obvEmaPeriod = 89
+    const obvEma = EMA.calculate({ period: obvEmaPeriod, values: onBalanceVolume })
+    const currentObvEma = obvEma[obvEma.length - 1]
+    console.log(`==> Current OBV EMA ${obvEmaPeriod}: ${currentObvEma}`)
+
+    // const lastPrice = closePrices.pop()
+    console.log(`==> Current Price: ${close[close.length - 1]}`)
 
     let directionalBias = "BULL"
-    if (lastPrice < currentEma) {
+    if (currentObv < currentObvEma) {
       directionalBias = "BEAR"
+    }
+    if (currentObv === currentObvEma) {
+      return "==> RSI and RSI EMA are equal - position is NEUTRAL, no action taken"
     }
 
     console.log(`==> Current direction bias: ${directionalBias}`)
@@ -228,6 +244,7 @@ async function main(): Promise<any> {
 
     return "==> Done."
   } catch (e) {
+    console.log("==> Error:")
     console.log(e)
   }
 }

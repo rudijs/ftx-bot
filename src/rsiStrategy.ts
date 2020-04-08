@@ -1,8 +1,8 @@
 import axios, { Method } from "axios"
 import { ftxApi, ftxParams } from "./ftxApi"
-import ema from "exponential-moving-average"
 import { tokenBalance } from "./wallet"
 import Decimal from "decimal.js"
+import { EMA, RSI } from "technicalindicators"
 
 if (!process.env.FTX_API_KEY || !process.env.FTX_SECRET) throw new Error("Missing required FTX env vars")
 
@@ -14,11 +14,13 @@ async function main(): Promise<any> {
     const args = process.argv.slice()
     let coin = "BTC"
     let resolution = 60
+    let subAccount = "ALGO-PERP"
     let params: ftxParams
 
     // Optional command line parameters
     if (args[2]) coin = args[2]
     if (args[3]) resolution = +args[3]
+    if (args[4]) subAccount = args[4]
 
     const market = `${coin}-PERP`
 
@@ -30,7 +32,7 @@ async function main(): Promise<any> {
     // GET /wallet/balances
     let method = "GET" as Method
     let path = "/api/wallet/balances"
-    params = { axios, apiKey, apiSecret, method, path }
+    params = { axios, apiKey, apiSecret, subAccount, method, path }
 
     let balances = await ftxApi(params)
     console.log("==> Wallet Balances:")
@@ -42,7 +44,7 @@ async function main(): Promise<any> {
     console.log(`==> Historical data limit: ${limit}`)
     path = `/api/markets/${market}/candles?resolution=${resolution}&limit=${limit}`
 
-    params = { axios, apiKey, apiSecret, method, path }
+    params = { axios, apiKey, apiSecret, subAccount, method, path }
 
     const data = await ftxApi(params)
     console.log("==> GET historical data", data.success)
@@ -50,17 +52,26 @@ async function main(): Promise<any> {
     // determine directional bias - bull or bear
     const closePrices = data.result.map((item: any) => item.close)
     // console.log(closePrices)
-    // console.log(ema(closePrices, 100).slice(-1)[0])
-    const emaPeriod = 100
-    const currentEma = ema(closePrices, emaPeriod).slice(-1)[0]
-    console.log(`==> Current EMA ${emaPeriod}: ${currentEma}`)
+
+    const rsiValues = RSI.calculate({ period: 14, values: closePrices })
+    // console.log(rsiValues.slice(-5))
+    const rsi = rsiValues[rsiValues.length - 1].toFixed(2)
+    console.log(`==> Current RSI: ${rsi}`)
+
+    const rsiEmaValues = EMA.calculate({ period: 55, values: rsiValues })
+    const rsiEma = rsiEmaValues[rsiEmaValues.length - 1].toFixed(2)
+    console.log(`==> Current RSI EMA: ${rsiEma}`)
 
     const lastPrice = closePrices.pop()
     console.log(`==> Current Price: ${lastPrice}`)
 
     let directionalBias = "BULL"
-    if (lastPrice < currentEma) {
+    // if (currentEma5 < currentEma13) {
+    if (rsi < rsiEma) {
       directionalBias = "BEAR"
+    }
+    if (rsi === rsiEma) {
+      return "==> RSI and RSI EMA are equal - position is NEUTRAL, no action taken"
     }
 
     console.log(`==> Current direction bias: ${directionalBias}`)

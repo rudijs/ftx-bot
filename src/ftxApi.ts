@@ -5,6 +5,7 @@ export type ftxParams = {
   axios: AxiosInstance
   apiKey: string
   apiSecret: string
+  subAccount?: string
   method: Method
   path: string
   order?: ftxOrder
@@ -24,7 +25,7 @@ export const ftxApi = (obj: ftxParams) => {
   // console.log(apiKey, apiSecret, method, path)
 
   const baseUrl = "https://ftx.com"
-  const subAccount = "BTC-Perp"
+  const subAccount = obj.subAccount || "BTC-Perp"
 
   const ts = Date.now()
 
@@ -69,7 +70,9 @@ export const ftxApi = (obj: ftxParams) => {
     })
     .catch(function (error: any) {
       // handle error
-      // console.log(error)
-      return error
+      // console.log(201, error)
+      // console.log(error.message)
+      throw error.response.data
+      // return error
     })
 }
