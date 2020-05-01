@@ -27,7 +27,7 @@ async function main(): Promise<any> {
       // console.log(`${property}:`)
       // console.log(`${property}: ${balances.result[property]}`)
       const usd = balances.result[property].filter((item: any) => item.coin === "USD")[0].total
-      console.log(`==> ${property}: ${usd}`)
+      console.log(`==> ${property.padStart(7, " ")}: ${usd}`)
     }
 
     return "==> Done."
